@@ -1,7 +1,12 @@
-import './App.css';
+import Layout from './components/layout';
+import Routes from './routes/routes';
 
 function App() {
-  return <>hello, world</>;
+  return (
+    <Layout>
+      <Routes />
+    </Layout>
+  );
 }
 
 export default App;
