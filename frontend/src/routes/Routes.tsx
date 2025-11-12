@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 import { Routes as Router, Route } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-const HomePage = lazy(() => import('../pages/home'));
+const HomePage = lazy(() => import('../pages/Home'));
 
 const Routes = () => {
   return (
