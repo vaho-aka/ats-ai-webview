@@ -2,16 +2,17 @@ import { Suspense, lazy } from 'react';
 import { Routes as Router, Route } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-const DashboardPage = lazy(() => import('../pages/Dashboard'));
+const UploadResume = lazy(() => import('../pages/UploadResume'));
+const ResumeInsight = lazy(() => import('../pages/ResumeInsight'));
+const ScoreOverview = lazy(() => import('../pages/ScoreOverview'));
 
 const Routes = () => {
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <Router>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/resume-insight" element={<DashboardPage />} />
-        <Route path="/score-overview" element={<DashboardPage />} />
-        <Route path="/settings" element={<DashboardPage />} />
+        <Route path="/" element={<UploadResume />} />
+        <Route path="/insights" element={<ResumeInsight />} />
+        <Route path="/score" element={<ScoreOverview />} />
       </Router>
     </Suspense>
   );

@@ -12,6 +12,7 @@
   "dependencies": {
     "@redux-devtools/extension": "^3.3.0",
     "@tailwindcss/vite": "^4.1.16",
+    "axios": "^1.13.2",
     "lucide-react": "^0.553.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -24,7 +25,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
-    "@types/node": "^24.6.0",
+    "@types/node": "^24.10.1",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
