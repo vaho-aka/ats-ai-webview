@@ -12,13 +12,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from pdf2image import convert_from_bytes
 
-from .models import Candidat, CV, Competence, CvCompetence, Experience, JobOffer, EvaluationPair
+from .models import Candidat, CV, JobOffer, EvaluationPair
 
 logger = logging.getLogger(__name__)
 
 # Configuration
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
@@ -158,80 +158,104 @@ def save_to_database(gemini_result: dict, job_des, pdf_file) -> dict:
 # API ENDPOINTS
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
-def upload_and_analyze_cv(request):
+def upload_and_extract_text(request):
     """
-    Main endpoint: Upload PDF, analyze with AI, save to database
-    
-    Required:
-    - resume: PDF file
-    - job_description: Job description text
-    
-    Returns: resume_text, skills, experience summary, candidat and CV IDs
+    Batch endpoint: upload multiple PDFs, convert each to images,
+    analyze each with AI, and return structured results.
     """
+
     try:
         # Validate inputs
-        if "resume" not in request.FILES:
-            return Response({"error": "Resume file required"}, status=400)
-        
+        if "resumes" not in request.FILES:
+            return Response({"error": "At least one resume PDF is required"}, status=400)
+
         if "job_description" not in request.data:
             return Response({"error": "Job description required"}, status=400)
 
-        resume_file = request.FILES["resume"]
         job_description = request.data["job_description"].strip()
+        resume_files = request.FILES.getlist("resumes")
 
-        # Validate PDF
-        if not resume_file.name.lower().endswith(".pdf"):
-            return Response({"error": "Only PDF files supported"}, status=400)
-        
-        if resume_file.size > MAX_FILE_SIZE:
-            return Response({"error": "File too large (max 10MB)"}, status=400)
+        batch_results = []
 
-        # Convert PDF to images
-        pdf_bytes = resume_file.read()
-        
-        if not pdf_bytes.startswith(b'%PDF'):
-            return Response({"error": "Invalid PDF file"}, status=400)
-        
-        images = convert_from_bytes(pdf_bytes, dpi=200, fmt="png")
-        
-        if not images:
-            return Response({"error": "PDF is empty"}, status=400)
+        for resume_file in resume_files:
 
-        # Encode images to base64
-        images_payload = []
-        for i, img in enumerate(images):
-            buffer = io.BytesIO()
-            img.save(buffer, format="PNG", optimize=True)
-            b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-            
-            images_payload.append({
-                "page_number": i + 1,
-                "image_base64": f"data:image/png;base64,{b64}"
+            # Validate PDF
+            if not resume_file.name.lower().endswith(".pdf"):
+                batch_results.append({
+                    "filename": resume_file.name,
+                    "error": "Only PDF files supported"
+                })
+                continue
+
+            if resume_file.size > MAX_FILE_SIZE:
+                batch_results.append({
+                    "filename": resume_file.name,
+                    "error": "File too large (max 10MB)"
+                })
+                continue
+
+            # Convert PDF -> bytes
+            pdf_bytes = resume_file.read()
+
+            if not pdf_bytes.startswith(b"%PDF"):
+                batch_results.append({
+                    "filename": resume_file.name,
+                    "error": "Invalid PDF file"
+                })
+                continue
+
+            # Convert PDF to images
+            images = convert_from_bytes(pdf_bytes, dpi=200, fmt="png")
+            if not images:
+                batch_results.append({
+                    "filename": resume_file.name,
+                    "error": "PDF contains no extractable pages"
+                })
+                continue
+
+            # Encode images to base64
+            images_payload = []
+            for i, img in enumerate(images):
+                buffer = io.BytesIO()
+                img.save(buffer, format="PNG", optimize=True)
+                b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+                images_payload.append({
+                    "page_number": i + 1,
+                    "image_base64": f"data:image/png;base64,{b64}"
+                })
+
+            # Build AI prompt
+            prompt = build_gemini_prompt(job_description)
+
+            # Call Gemini for this PDF
+            gemini_result = call_gemini_api(
+                prompt,
+                job_description,
+                images_payload
+            )
+
+            # Save in DB
+            resume_file.seek(0)
+            save_to_database(gemini_result, resume_file)
+
+            # Add result for this PDF
+            batch_results.append({
+                "filename": resume_file.name,
+                "analysis": gemini_result,
+                "success": True
             })
 
-        # Call Gemini AI
-        prompt = build_gemini_prompt(job_description)
-        gemini_result = call_gemini_api(prompt, images_payload)
-
-        # Save to database
-        resume_file.seek(0)  # Reset file pointer
-        db_result = save_to_database(gemini_result, resume_file)
-
-        # Return success
         return Response({
             "success": True,
-            "message": "CV analyzed and saved successfully",
-            "filename": resume_file.name,
-            "total_pages": len(images_payload),
-            "cv_id": db_result["cv_id"],
-            "candidat_id": db_result["candidat_id"],
-            "candidat_email": db_result["candidat_email"],
-            "analysis": gemini_result
+            "message": "Batch CV processing completed",
+            "results": batch_results
         })
 
     except Exception as e:
-        logger.exception("Error processing CV")
+        logger.exception("Batch processing error")
         return Response({"error": str(e)}, status=500)
+
 
 
 @api_view(["POST"])
