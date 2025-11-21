@@ -1,21 +1,29 @@
 import axios from 'axios';
-import type { ResumeData, ScoreData } from '../interfaces/interfaces';
+import type { Results } from '../interfaces/interfaces';
 
-const API_ROOT = process.env.REACT_APP_API_URL || 'http://localhost:8000/';
+const API_ROOT = 'http://localhost:8000/';
 
 export async function uploadResumeAndJob(
-  file: File,
+  files: File[],
   jobDescription: string
-): Promise<{ resume: ResumeData; score: ScoreData }> {
+): Promise<{ success: string; top_five: Results[] }> {
   const form = new FormData();
-  form.append('resume', file);
+
+  // Append all PDFs one by one
+  files.forEach((file) => {
+    form.append('resumes', file); // backend receives a list
+  });
+
   form.append('job_description', jobDescription);
 
-  // Django endpoint: /api/analyze/
-  const response = await axios.post(`${API_ROOT}/api/upload/analyze/`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    withCredentials: true,
-  });
-  // response.data = { resume: {...}, score: {...} }
+  const response = await axios.post(
+    `${API_ROOT}/api/upload_and_evaluate/`,
+    form,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      withCredentials: true,
+    }
+  );
+
   return response.data;
 }

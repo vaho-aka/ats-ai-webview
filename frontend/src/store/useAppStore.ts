@@ -1,50 +1,33 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type {
-  ResumeData,
-  ScoreData,
-  UploadStatus,
-} from '../interfaces/interfaces';
-
-interface State {
-  resumeData: ResumeData | null;
-  jobDescription: string;
-  scoreData: ScoreData | null;
-  uploadStatus: UploadStatus;
-
-  setResumeData: (r: ResumeData | null) => void;
-  setJobDescription: (text: string) => void;
-  setScoreData: (s: ScoreData | null) => void;
-  setUploadStatus: (s: UploadStatus) => void;
-  reset: () => void;
-}
+import type { State } from '../interfaces/interfaces';
 
 export const useAppStore = create<State>()(
   persist(
     (set) => ({
-      resumeData: null,
+      top_five: [],
       jobDescription: '',
-      scoreData: null,
       uploadStatus: 'idle',
 
-      setResumeData: (r) => set({ resumeData: r }),
       setJobDescription: (text) => set({ jobDescription: text }),
-      setScoreData: (s) => set({ scoreData: s }),
+      setTopFive: (r) => set({ top_five: r }),
       setUploadStatus: (s) => set({ uploadStatus: s }),
+
       reset: () =>
         set({
-          resumeData: null,
+          top_five: [],
           jobDescription: '',
-          scoreData: null,
           uploadStatus: 'idle',
         }),
     }),
     {
-      name: 'ats-store', // localStorage key
+      name: 'ats-store',
+
+      // Persist only what you want to keep across refresh
       partialize: (state) => ({
-        resumeData: state.resumeData,
         jobDescription: state.jobDescription,
-        scoreData: state.scoreData,
+        // uncomment this if you want top_five to persist:
+        top_five: state.top_five,
       }),
     }
   )

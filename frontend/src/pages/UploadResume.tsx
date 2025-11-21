@@ -1,18 +1,16 @@
 import React, { useRef, useState } from 'react';
 import { Upload, TrendingUp } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-// import { uploadResumeAndJob } from '../api/resumeApi';
+import { uploadResumeAndJob } from '../api/resumeApi';
 
 export const UploadResume: React.FC = () => {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const jobDescription = useAppStore((s) => s.jobDescription);
   const setJobDescription = useAppStore((s) => s.setJobDescription);
-  const setResumeData = useAppStore((s) => s.setResumeData);
-  const setScoreData = useAppStore((s) => s.setScoreData);
   const setUploadStatus = useAppStore((s) => s.setUploadStatus);
+  const [files, setFiles] = useState<File[]>([]);
 
-  const [file, setFile] = useState<File | null>(null);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
@@ -25,17 +23,14 @@ export const UploadResume: React.FC = () => {
   }
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null;
-    if (f && f.type === 'application/pdf') {
-      setFile(f);
-      notify('success', 'Resume uploaded');
-    } else if (f) {
-      notify('error', 'Only PDF allowed');
-    }
+    const selectedFiles = e.target.files;
+    if (!selectedFiles) return;
+
+    setFiles(Array.from(selectedFiles)); // convert FileList → array
   };
 
   const onSubmit = async () => {
-    if (!file || !jobDescription.trim()) {
+    if (!files || !jobDescription.trim()) {
       notify('error', 'Please add a PDF and job description');
       return;
     }
@@ -44,32 +39,12 @@ export const UploadResume: React.FC = () => {
 
     try {
       // replace with the real API call
-      // const { resume, score } = await uploadResumeAndJob(file, jobDescription)
+      const { top_five } = await uploadResumeAndJob(files, jobDescription);
 
-      // --- mock fallback (keeps original behavior) ---
+      console.log(top_five);
+
       await new Promise((r) => setTimeout(r, 1200));
-      const resume = {
-        name: 'John Doe',
-        email: 'john.doe@example.com',
-        phone: '+1 555 555 5555',
-        skills: ['React', 'TypeScript', 'Django', 'Docker'],
-        summary: '5+ years full-stack dev',
-        experience: 'Fullstack experience at X',
-        education: 'B.S.',
-      };
-      const score = {
-        score: 85,
-        matchedKeywords: ['React', 'TypeScript', 'Django'],
-        missingKeywords: ['Kubernetes'],
-        recommendations: ['Add cloud deployment details'],
-        skillsMatch: 82,
-        experienceMatch: 88,
-        keywordMatch: 85,
-      };
-      // ---------------------------------------------
 
-      setResumeData(resume);
-      setScoreData(score);
       setUploadStatus('success');
       notify('success', 'Analysis complete');
     } catch (err) {
@@ -96,25 +71,38 @@ export const UploadResume: React.FC = () => {
       )}
 
       <div className="rounded-xl bg-white shadow p-6">
-        <h3 className="text-xl font-semibold mb-4">Télécharger le CV (PDF)</h3>
+        <h3 className="text-xl font-semibold mb-4">Télécharger les CV (PDF)</h3>
+
         <div className="border-2 bg-gray-50 border-dashed rounded p-8 text-center">
           <input
             ref={fileRef}
             type="file"
             accept="application/pdf"
+            multiple // <-- ENABLE MULTIPLE
             onChange={onFileChange}
             className="hidden"
             id="resume-file"
           />
+
           <label htmlFor="resume-file" className="cursor-pointer">
             <Upload className="mx-auto mb-3 text-blue-500" size={40} />
-            <div className="text-lg">
-              {file
-                ? file.name
-                : 'Déposez votre CV ou cliquez pour sélectionner'}
+
+            <div className="text-lg font-medium">
+              {files && files.length > 0 ? (
+                <ul className="text-left inline-block">
+                  {files.map((f, idx) => (
+                    <li key={idx} className="text-sm text-gray-700">
+                      • {f.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                'Déposez vos CV ou cliquez pour sélectionner'
+              )}
             </div>
+
             <div className="text-sm text-gray-500 mt-2">
-              Seul le format PDF est pris en charge.
+              Formats PDF uniquement — vous pouvez en télécharger plusieurs.
             </div>
           </label>
         </div>

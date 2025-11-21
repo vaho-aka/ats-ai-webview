@@ -1,29 +1,31 @@
-// src/interfaces/types.ts
-export interface ResumeData {
-  name: string;
-  email: string;
-  phone: string;
-  skills: string[];
-  summary?: string;
-  experience?: string;
-  education?: string;
+export interface Results {
+  score_sur_100: string;
+  competences: string[];
+  identite: {
+    nom: string;
+    contact: {
+      email: string;
+      telephone: string;
+      adresse: string;
+    };
+  };
 }
 
-export interface ScoreData {
-  score: number; // overall score 0-100
-  matchedKeywords: string[];
-  missingKeywords: string[];
-  recommendations?: string[];
-  skillsMatch?: number;
-  experienceMatch?: number;
-  keywordMatch?: number;
+export interface State {
+  top_five: Results[];
+  jobDescription: string;
+  uploadStatus: UploadStatus;
+
+  setJobDescription: (text: string) => void;
+  setTopFive: (r: Results[]) => void;
+  setUploadStatus: (s: UploadStatus) => void;
+  reset: () => void;
 }
 
 export type UploadStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export interface AppState {
-  resumeData: ResumeData | null;
+  top_five: Results[];
   jobDescription: string;
-  scoreData: ScoreData | null;
   uploadStatus: UploadStatus;
 }

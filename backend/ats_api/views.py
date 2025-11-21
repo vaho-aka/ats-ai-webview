@@ -1,29 +1,75 @@
 import os
 import base64
 import io
+import re
 import json
 import logging
-import requests
-import re
-from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view, parser_classes
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status
 from pdf2image import convert_from_bytes
+import google.generativeai as genai
+from dotenv import load_dotenv
+from pathlib import Path
+from sentence_transformers import SentenceTransformer, util
+from huggingface_hub import login
+
 
 from .models import Candidat, CV, JobOffer, EvaluationPair
 
 logger = logging.getLogger(__name__)
+BASE_DIR = Path(__file__).resolve().parent.parent
+GEMINI_API_KEY = load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Configuration
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-# HELPER FUNCTIONS
+# MODEL 
+login(token=os.getenv("HF_TOKEN"))
 
+MODEL_NAME = "vahoaka/sentence-transformers-model-vahoaka-v1"
+
+print("Loading multilingual MiniLM model...")
+
+similarity_model = SentenceTransformer(MODEL_NAME)
+
+def semantic_similarity(text_a: str, text_b: str) -> float:
+    """
+    Compute cosine similarity (0–100) using the fine-tuned HuggingFace model.
+    """
+    if not text_a or not text_b:
+        return 0.0
+
+    embeddings = similarity_model.encode([text_a, text_b], convert_to_tensor=True)
+    score = util.cos_sim(embeddings[0], embeddings[1]).item()
+
+    # Convert -1..1 → 0..100
+    normalized = (score + 1) / 2 * 100  
+    return round(normalized, 2)
+
+
+def extract_json(text: str):
+    """
+    Extract the first valid JSON {...} from Gemini output,
+    even if wrapped in markdown or extra text.
+    """
+    if not text or not isinstance(text, str):
+        raise ValueError("Gemini returned empty or invalid output")
+
+    # Remove markdown code fences like ```json
+    text = text.replace("```json", "").replace("```", "").strip()
+
+    # Extract the JSON block
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        raise ValueError(f"Gemini did not return JSON. Raw output: {text}")
+
+    json_str = match.group(0)
+
+    return json.loads(json_str)
+
+# HELPER FUNCTIONS
 def build_gemini_prompt(job_description: str) -> str:
     """Create the prompt that tells Gemini how to analyze the CV"""
     return f"""
@@ -44,68 +90,88 @@ Réponds UNIQUEMENT en JSON (aucun markdown, aucun backtick). Utilise exactement
     }}
   }},
   "competences": ["list", "des", "competences", "trouvees", "dans", "le", "cv"],
-  "resume_experience": "Summary of work experience in a few sentences",
+  "resume_experience": "Résumé de l'expérience professionnelle en quelques phrases",
   "job_competences": ["list", "des", "competences", "dans", "la", "description", "du", "poste"],
-  "texte_source_analyse_gemini": "Extracted text from CV",
+  "job_title": "Intitulé du poste postulé",
 }}
 
 Extrait tout le texte des images du CV et remplis tous les champs. Retourne uniquement le JSON.
 """
 
+def gemini_prompt_for_evaluation(resume_data: dict, job_description: str) -> str:
+    return f"""
+Compare this CV with the job offer and return a JSON score.
 
-def call_gemini_api(prompt: str, images_payload: list) -> dict:
-    """Send images and prompt to Gemini API and get JSON response"""
-    if not GEMINI_API_KEY:
-        raise EnvironmentError("GEMINI_API_KEY not configured")
+CV EXPERIENCE:
+{resume_data.get("resume_experience", "")}
 
-    url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
+CV SKILLS:
+{", ".join(resume_data.get("competences", []))}
 
-    # Prepare images for Gemini
-    image_parts = []
-    for img_data in images_payload:
-        base64_str = img_data["image_base64"]
-        if "base64," in base64_str:
-            base64_str = base64_str.split("base64,")[1]
-        
-        image_parts.append({
+CV JOB TITLE (if detected):
+{resume_data.get("job_title", "")}
+
+JOB REQUIRED SKILLS:
+{", ".join(resume_data.get("job_competences", []))}
+
+JOB DESCRIPTION:
+{job_description}
+
+Return ONLY JSON with EXACTLY this format:
+
+{{
+  "score_sur_100": 0,
+  "explication": "short explanation",
+  "recommendations": ["conseil 1", "conseil 2"]
+}}
+"""
+
+
+def call_gemini_api(prompt: str, images_payload: list):
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
+    content = [{"text": prompt}]
+
+    for img in images_payload:
+        base64_clean = img["image_base64"].split("base64,")[1]
+        content.append({
             "inline_data": {
                 "mime_type": "image/png",
-                "data": base64_str
+                "data": base64_clean
             }
         })
 
-    # API request body
-    body = {
-        "contents": [{
-            "parts": [
-                {"text": prompt},
-                *image_parts
-            ]
-        }],
-        "generationConfig": {
-            "temperature": 0.1,
-            "maxOutputTokens": 4096,
-        }
+    response = model.generate_content(
+        content,
+        generation_config={"temperature": 0.1, "max_output_tokens": 4096}
+    )
+
+    # print("RAW GEMINI OUTPUT:\n", repr(response.text))
+    return json.loads(response.text)
+
+
+def call_gemini_evaluation_api(prompt: str) -> dict:
+    """Call Gemini API for evaluation of CV vs job description"""
+    model = genai.GenerativeModel("gemini-2.5-flash")
+    
+    # Configure generation parameters
+    generation_config = {
+        "temperature": 0.1,
+        "max_output_tokens": 4096,
     }
+    
+     # Call the API
+    response = model.generate_content(
+        prompt,
+        generation_config=generation_config
+    )
 
-    # Call API
-    resp = requests.post(url, headers={"Content-Type": "application/json"}, json=body, timeout=120)
-    
-    if resp.status_code != 200:
-        raise RuntimeError(f"Gemini API error: {resp.status_code}")
+    raw = response.text
+    # print("RAW GEMINI OUTPUT:\n", repr(raw))
 
-    data = resp.json()
-    
-    # Extract text from response
-    text_content = data["candidates"][0]["content"]["parts"][0]["text"]
-    
-    # Clean markdown formatting if present
-    text_content = text_content.strip()
-    text_content = re.sub(r'^```json\s*', '', text_content)
-    text_content = re.sub(r'\s*```$', '', text_content)
-    
     # Parse JSON
-    return json.loads(text_content)
+    return extract_json(raw)
+
 
 
 def save_to_database(gemini_result: dict, job_des, pdf_file) -> dict:
@@ -154,18 +220,60 @@ def save_to_database(gemini_result: dict, job_des, pdf_file) -> dict:
         "job_description": job_description
     }
 
-
-# API ENDPOINTS
-@api_view(["POST"])
-@parser_classes([MultiPartParser, FormParser])
-def upload_and_extract_text(request):
+def process_cv_batch(resume_file, job_description):
     """
-    Batch endpoint: upload multiple PDFs, convert each to images,
-    analyze each with AI, and return structured results.
+    Convert PDF → ONLY FIRST PAGE → Gemini extract
     """
 
     try:
-        # Validate inputs
+        pdf_bytes = resume_file.read()
+
+        # Convert only FIRST PAGE of PDF
+        images = convert_from_bytes(pdf_bytes, dpi=150, fmt="png") 
+        first_page = images[0]
+
+        buffer = io.BytesIO()
+        first_page.save(buffer, format="PNG")
+        b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        images_payload = [{
+            "page_number": 1,
+            "image_base64": f"data:image/png;base64,{b64}"
+        }]
+
+        # Build prompt
+        prompt = build_gemini_prompt(job_description)
+
+        # Gemini extraction (MUCH smaller payload now)
+        extract_response = call_gemini_api(prompt, images_payload)
+
+        return {
+            "success": True,
+            "results": extract_response
+        }
+
+    except Exception as e:
+        logger.exception("PDF batch processing failed")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+
+
+# API ENDPOINTS - /api/upload_and_evaluate
+@api_view(["POST"])
+def evaluate_cv_vs_offer(request):
+    """
+     Accept multiple PDFs ("resumes")
+     Extract text & data via Gemini
+     Evaluate each CV vs Job Description
+     Return sorted top 5 best-matching CVs
+    """
+
+    try:
+        # Validate Inputs
         if "resumes" not in request.FILES:
             return Response({"error": "At least one resume PDF is required"}, status=400)
 
@@ -175,168 +283,62 @@ def upload_and_extract_text(request):
         job_description = request.data["job_description"].strip()
         resume_files = request.FILES.getlist("resumes")
 
-        batch_results = []
+        # Process Each Resume (PDF → Images → Gemini Extract)
+        extracted_resumes = []
 
         for resume_file in resume_files:
-
-            # Validate PDF
-            if not resume_file.name.lower().endswith(".pdf"):
-                batch_results.append({
-                    "filename": resume_file.name,
-                    "error": "Only PDF files supported"
-                })
-                continue
-
             if resume_file.size > MAX_FILE_SIZE:
-                batch_results.append({
-                    "filename": resume_file.name,
-                    "error": "File too large (max 10MB)"
-                })
-                continue
+                return Response(
+                    {"error": f"File {resume_file.name} exceeds max size (10MB)"},
+                    status=400,
+                )
 
-            # Convert PDF -> bytes
-            pdf_bytes = resume_file.read()
+            extraction = process_cv_batch(resume_file, job_description)
 
-            if not pdf_bytes.startswith(b"%PDF"):
-                batch_results.append({
-                    "filename": resume_file.name,
-                    "error": "Invalid PDF file"
-                })
-                continue
+            if not extraction["success"]:
+                return Response({"error": "Gemini extraction failed"}, status=500)
 
-            # Convert PDF to images
-            images = convert_from_bytes(pdf_bytes, dpi=200, fmt="png")
-            if not images:
-                batch_results.append({
-                    "filename": resume_file.name,
-                    "error": "PDF contains no extractable pages"
-                })
-                continue
+            extracted_resumes.append(extraction["results"])
 
-            # Encode images to base64
-            images_payload = []
-            for i, img in enumerate(images):
-                buffer = io.BytesIO()
-                img.save(buffer, format="PNG", optimize=True)
-                b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        # Evaluate EACH extracted resume against job description
+        scored_resumes = []
 
-                images_payload.append({
-                    "page_number": i + 1,
-                    "image_base64": f"data:image/png;base64,{b64}"
-                })
+        for resume_data in extracted_resumes:
 
-            # Build AI prompt
-            prompt = build_gemini_prompt(job_description)
+            cv_text = (
+                resume_data.get("resume_experience", "") + " " + " ".join(resume_data.get("competences",[]))
+)
 
-            # Call Gemini for this PDF
-            gemini_result = call_gemini_api(
-                prompt,
-                job_description,
-                images_payload
-            )
+            job_text = job_description + " " + " ".join(resume_data.get("job_competences", []))
 
-            # Save in DB
-            resume_file.seek(0)
-            save_to_database(gemini_result, resume_file)
+            similarity_score = semantic_similarity(cv_text, job_text)
 
-            # Add result for this PDF
-            batch_results.append({
-                "filename": resume_file.name,
-                "analysis": gemini_result,
-                "success": True
+            scored_resumes.append({
+                **resume_data,
+                "score_sur_100": similarity_score,
             })
 
-        return Response({
-            "success": True,
-            "message": "Batch CV processing completed",
-            "results": batch_results
-        })
-
-    except Exception as e:
-        logger.exception("Batch processing error")
-        return Response({"error": str(e)}, status=500)
-
-
-
-@api_view(["POST"])
-def evaluate_cv_vs_offer(request):
-    """
-    Compare existing CV with job offer
-    
-    Required:
-    - cv_id: CV ID
-    - offer_id: Job offer ID
-    
-    Returns: Compatibility score
-    """
-    try:
-        cv_id = request.data.get("cv_id")
-        offer_id = request.data.get("offer_id")
-
-        if not cv_id or not offer_id:
-            return Response({"error": "cv_id and offer_id required"}, status=400)
-
-        cv = get_object_or_404(CV, pk=cv_id)
-        offer = get_object_or_404(JobOffer, pk=offer_id)
-
-        # Build evaluation prompt
-        prompt = f"""
-Compare this CV with the job offer and return a JSON score.
-
-CV: {cv.resume_ai[:500]}
-Skills: {', '.join([c.competence.nom_comp for c in cv.cv_competences.all()])}
-
-Job Offer: {offer.titre}
-Description: {offer.description[:500]}
-Required: {offer.competences_requises}
-
-Return only this JSON:
-{{
-  "score_sur_100": 85,
-  "explication": "Brief explanation",
-  "recommandations": ["Tip 1", "Tip 2"]
-}}
-"""
-
-        # Call Gemini
-        url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
-        body = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
-        }
-        
-        resp = requests.post(url, json=body, timeout=60)
-        
-        if resp.status_code == 200:
-            data = resp.json()
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-            text = re.sub(r'^```json\s*|\s*```$', '', text.strip())
-            result = json.loads(text)
-            
-            score = result.get("score_sur_100", 0)
-            explanation = result.get("explication", "")
-        else:
-            score = 0
-            explanation = "AI evaluation failed"
-
-        # Save evaluation
-        pair = EvaluationPair.objects.create(
-            cv=cv,
-            offre=offer,
-            score_genai=score,
-            commentaire=explanation
+        # Sort Best Scores (Descending)
+        sorted_scores = sorted(
+            scored_resumes,
+            key=lambda x: x.get("score_sur_100", 0),
+            reverse=True
         )
 
+        top_five = sorted_scores[:5]
+
+        # Return Clean JSON Response
         return Response({
             "success": True,
-            "pair_id": pair.pk,
-            "score": score,
-            "explanation": explanation
-        })
+            "results_count": len(scored_resumes),
+            "top_five": top_five
+        }, status=200)
 
     except Exception as e:
         logger.exception("Evaluation failed")
         return Response({"error": str(e)}, status=500)
+
+
 
 
 @api_view(["GET"])
