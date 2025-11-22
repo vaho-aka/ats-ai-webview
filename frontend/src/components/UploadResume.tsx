@@ -23,9 +23,14 @@ export default function UploadResume() {
   const onSubmit = async () => {
     if (selected.length === 0) return;
     try {
-      setUploadStatus('loading');
+      setUploadStatus('uploading');
       const resp = await uploadResumeAndJob(selected, jobDescription);
-      setTopFive(resp.top_five || resp.evaluations || []);
+
+      setUploadStatus('processing');
+
+      console.log(resp);
+
+      setTopFive(resp.top_ranked);
       setUploadStatus('success');
     } catch (err) {
       console.error(err);
@@ -70,7 +75,9 @@ export default function UploadResume() {
         />
       </div>
 
-      <Button onClick={onSubmit}>Analyser</Button>
+      <Button className="active:scale-95" onClick={onSubmit}>
+        Analyser
+      </Button>
     </div>
   );
 }

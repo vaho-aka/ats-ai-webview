@@ -1,18 +1,25 @@
 export interface State {
-  top_five: Results[];
+  top_ranked: Results[];
   jobDescription: string;
   uploadStatus: UploadStatus;
+  selectedFile: Results[];
 
   setJobDescription: (text: string) => void;
-  setTopFive: (r: Results[]) => void;
+  setSelectedFile: (file: Results[]) => void;
   setUploadStatus: (s: UploadStatus) => void;
+  setTopFive: (r: Results[]) => void;
   reset: () => void;
 }
 
-export type UploadStatus = 'idle' | 'loading' | 'success' | 'error';
+export type UploadStatus =
+  | 'idle'
+  | 'uploading'
+  | 'processing'
+  | 'success'
+  | 'error';
 
 export interface AppState {
-  top_five: Results[];
+  top_ranked: Results[];
   jobDescription: string;
   uploadStatus: UploadStatus;
 }
@@ -57,7 +64,7 @@ export interface Results {
 
 export interface ATSApiResponse {
   success: boolean;
-  top_five: Results[];
+  top_ranked: Results[];
 }
 
 // Component Props
