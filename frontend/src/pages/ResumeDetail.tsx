@@ -31,9 +31,9 @@ export default function ResumeDetail() {
     );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-10">
+    <div className="min-h-screen bg-gray-100 p-10">
       {/* HEADER */}
-      <div className="flex items-center gap-4 mb-10">
+      <div className="flex items-center gap-4 mb-6">
         <button onClick={() => nav(-1)}>
           <ArrowLeft className="text-gray-600 hover:text-black" />
         </button>
@@ -41,7 +41,7 @@ export default function ResumeDetail() {
       </div>
 
       {/* TOP METRIC BAR */}
-      <Card className="p-6 flex flex-row items-center justify-between mb-10">
+      <Card className="p-6 flex flex-row items-center justify-between mb-6">
         <div className="flex flex-col gap-2">
           <div className="text-2xl mb-8 font-bold">{cv.identite.nom}</div>
           <div className="flex items-center gap-2">
@@ -80,13 +80,13 @@ export default function ResumeDetail() {
       </Card>
 
       {/* EXPERIENCE SUMMARY */}
-      <Card className="p-5 mb-8">
+      <Card className="p-5 mb-6">
         <h3 className="font-semibold mb-2">Résumé de l'expérience</h3>
         <p className="text-gray-700">{cv.resume_experience}</p>
       </Card>
 
       {/* SKILLS MATCH */}
-      <Card className="p-5 mb-8">
+      <Card className="p-5 mb-6">
         <h3 className="font-semibold mb-2">Compétences</h3>
 
         <div className="flex flex-wrap gap-2">
@@ -113,7 +113,7 @@ export default function ResumeDetail() {
       </Card>
 
       {/* JOB DESCRIPTION */}
-      <Card className="p-5 mb-8">
+      <Card className="p-5 mb-6">
         <h2 className="font-semibold mb-2">Description du poste</h2>
 
         <p className="text-gray-700 whitespace-pre-line">{jobDesc}</p>

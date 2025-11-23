@@ -22,8 +22,9 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # CONFIG
 
-GEMINI_API_KEY = load_dotenv(os.path.join(BASE_DIR, ".env"))
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
 
 login(token=os.getenv("HF_TOKEN"))
 
@@ -92,11 +93,12 @@ Format STRICT (aucune explication, aucun texte hors JSON):
 }}
 
 IMPORTANT:
-- UTILISE le contenu du CV
-- PAS de markdown
-- PAS de ``` code fences
-- Retourne uniquement en format JSON
-- français strict
+⚠️ Ne jamais utiliser de markdown
+⚠️ Ne jamais ajouter de commentaires
+⚠️ Ne pas inclure ``` ou ### ou --
+⚠️ Répondre UNIQUEMENT en JSON valide
+⚠️ Si un champ est introuvable → renvoyer "" au lieu d’inventer
+⚠️ Ne pas déduire, uniquement extraire
 """
 
 
