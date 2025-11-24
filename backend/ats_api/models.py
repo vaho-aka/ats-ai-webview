@@ -1,10 +1,7 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-
 
 class Candidat(models.Model):
     nom = models.CharField(max_length=255)
-    prenom = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     telephone = models.CharField(max_length=255, blank=True)
     localisation = models.CharField(max_length=255, blank=True)

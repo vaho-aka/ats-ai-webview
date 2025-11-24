@@ -4,6 +4,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 const Dashboard = lazy(() => import('../pages/Dashboard'));
 const ResumeDetail = lazy(() => import('../pages/ResumeDetail'));
+const Candidats = lazy(() => import('../pages/Candidats'));
 
 const Routes = () => {
   return (
@@ -11,6 +12,7 @@ const Routes = () => {
       <Router>
         <Route path="/" element={<Dashboard />} />
         <Route path="/resume/:name" element={<ResumeDetail />} />
+        <Route path="/candidats" element={<Candidats />} />
       </Router>
     </Suspense>
   );

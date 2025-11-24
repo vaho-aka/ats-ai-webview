@@ -13,5 +13,6 @@ export async function uploadResumeAndJob(
   const resp = await axios.post(`${API_ROOT}/api/upload_and_evaluate/`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+
   return resp.data;
 }

@@ -1,11 +1,11 @@
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
-import type { Results } from '@/interfaces/interfaces';
+import type { Result } from '@/interfaces/interfaces';
 import { Badge } from './ui/badge';
 
 type Props = {
-  cv: Results;
+  cv: Result;
   rank: number;
 };
 
@@ -20,7 +20,7 @@ export default function ResumeScoreCard({ cv, rank }: Props) {
       <Card className="p-4 justify-between cursor-pointer hover:bg-gray-50">
         <div>
           <div className="flex justify-between items-center mb-2">
-            <div className="font-semibold text-lg">{cv.identite.nom}</div>
+            <div className="font-semibold text-lg">{cv.nom}</div>
             <Badge
               className={` text-sm ${
                 rank === 1

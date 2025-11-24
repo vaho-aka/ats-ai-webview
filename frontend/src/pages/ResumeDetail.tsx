@@ -9,8 +9,10 @@ export default function ResumeDetail() {
   const nav = useNavigate();
   const selectedFile = useAppStore((s) => s.selectedFile);
   const cv = selectedFile[0];
-  const jobDesc = useAppStore((s) => s.jobDescription);
+  const jobDesc = useAppStore((s) => s.job_description);
   const [progress, setProgress] = useState(0);
+
+  const job_competences = useAppStore((s) => s.job_competences);
 
   useEffect(() => {
     let start = 0;
@@ -31,7 +33,7 @@ export default function ResumeDetail() {
     );
 
   return (
-    <div className="min-h-screen bg-gray-100 p-10">
+    <div className="min-h-screen bg-gray-100 px-10">
       {/* HEADER */}
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => nav(-1)}>
@@ -43,22 +45,19 @@ export default function ResumeDetail() {
       {/* TOP METRIC BAR */}
       <Card className="p-6 flex flex-row items-center justify-between mb-6">
         <div className="flex flex-col gap-2">
-          <div className="text-2xl mb-8 font-bold">{cv.identite.nom}</div>
+          <div className="text-2xl mb-8 font-bold">{cv.nom}</div>
           <div className="flex items-center gap-2">
             <BriefcaseBusiness />
             <p className="text-gray-600">{cv.job_title}</p>
           </div>
           <div className="flex items-center gap-2">
             <Phone />
-            <p className="text-gray-600">{cv.identite.contact.telephone}</p>
+            <p className="text-gray-600">{cv.telephone}</p>
           </div>
           <div className="flex items-center gap-2">
             <Mail />
-            <a
-              href={`mailto:${cv.identite.contact.email}`}
-              className="text-gray-600"
-            >
-              {cv.identite.contact.email}
+            <a href={`mailto:${cv.email}`} className="text-gray-600">
+              {cv.email}
             </a>
           </div>
         </div>
@@ -91,13 +90,13 @@ export default function ResumeDetail() {
 
         <div className="flex flex-wrap gap-2">
           {cv.competences.map((skill: string, i: number) => {
-            const isMatch = cv.job_competences
+            const isMatch = job_competences
               .map((jc: string) => jc.toLowerCase())
               .includes(skill.toLowerCase());
 
             return (
               <span
-                key={i}
+                key={i + skill}
                 className={
                   `px-3 py-1 rounded text-sm border ` +
                   (isMatch

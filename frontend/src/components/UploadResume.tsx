@@ -8,11 +8,14 @@ import { Textarea } from './ui/textarea';
 export default function UploadResume() {
   const fileRef = useRef(null);
   const [selected, setSelected] = useState<File[]>([]);
-  const setTopFive = useAppStore((s) => s.setTopFive);
+  const setTopRanked = useAppStore((s) => s.setTopRanked);
   const setUploadStatus = useAppStore((s) => s.setUploadStatus);
 
-  const jobDescription = useAppStore((s) => s.jobDescription);
+  const jobDescription = useAppStore((s) => s.job_description);
   const setJobDescription = useAppStore((s) => s.setJobDescription);
+  const setJobId = useAppStore((s) => s.setJobId);
+  const setJobTitle = useAppStore((s) => s.setJobTitle);
+  const setJobCompetencecs = useAppStore((s) => s.setJobCompetencecs);
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -28,9 +31,10 @@ export default function UploadResume() {
 
       setUploadStatus('processing');
 
-      console.log(resp);
-
-      setTopFive(resp.top_ranked);
+      setTopRanked(resp.top_ranked);
+      setJobId(resp.job_id);
+      setJobTitle(resp.job_title);
+      setJobCompetencecs(resp.job_competences);
       setUploadStatus('success');
     } catch (err) {
       console.error(err);
@@ -53,7 +57,7 @@ export default function UploadResume() {
             id="resume-file"
           />
           <label htmlFor="resume-file" className="cursor-pointer">
-            <Upload className="mx-auto mb-3 text-blue-500" size={40} />
+            <Upload className="mx-auto mb-3 text-neutral-500" size={40} />
             <div className="text-lg">
               {selected.length > 0
                 ? `${selected.length} fichier(s) sélectionnés`

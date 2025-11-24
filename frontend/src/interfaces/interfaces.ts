@@ -1,16 +1,3 @@
-export interface State {
-  top_ranked: Results[];
-  jobDescription: string;
-  uploadStatus: UploadStatus;
-  selectedFile: Results[];
-
-  setJobDescription: (text: string) => void;
-  setSelectedFile: (file: Results[]) => void;
-  setUploadStatus: (s: UploadStatus) => void;
-  setTopFive: (r: Results[]) => void;
-  reset: () => void;
-}
-
 export type UploadStatus =
   | 'idle'
   | 'uploading'
@@ -18,61 +5,48 @@ export type UploadStatus =
   | 'success'
   | 'error';
 
-export interface AppState {
-  top_ranked: Results[];
-  jobDescription: string;
+export interface State {
   uploadStatus: UploadStatus;
+  selectedFile: Result[];
+
+  Candidats: Candidat[];
+
+  job_id: number;
+  job_title: string;
+  top_ranked: Result[];
+  job_description: string;
+  job_competences: string[];
+
+  setJobDescription: (text: string) => void;
+  setSelectedFile: (file: Result[]) => void;
+  setUploadStatus: (s: UploadStatus) => void;
+  setTopRanked: (r: Result[]) => void;
+  setJobId: (n: number) => void;
+  setJobTitle: (text: string) => void;
+  setJobCompetencecs: (skills: string[]) => void;
+  setCondidats: (c: Candidat[]) => void;
+
+  reset: () => void;
 }
 
-export interface ContactInfo {
+export interface Result {
+  candidat_id: number;
+  cv_id: number;
+  evaluation_id: number;
+  score_sur_100: number;
+  competences: string[];
+  telephone: string;
+  resume_experience: string;
+  job_title: string;
+  filename: string;
+  nom: string;
+  email: string;
+}
+
+export interface Candidat {
+  id: number;
+  nom: string;
   email: string;
   telephone: string;
-  adresse: string;
-}
-
-export interface Identite {
-  nom: string;
-  contact: ContactInfo;
-}
-
-export interface ResumeExtractionResult {
-  identite: Identite;
-  competences: string[];
-  resume_experience: string;
-  job_competences: string[];
-  job_title: string;
-  score_sur_100: number;
-}
-
-export interface EvaluationResult {
-  explication: string;
-  recommendations: string[];
-}
-
-export interface CombinedResult
-  extends ResumeExtractionResult,
-    EvaluationResult {}
-
-export interface Results {
-  score_sur_100: number;
-  identite: Identite;
-  job_competences: string[];
-  competences: string[];
-  resume_experience: string;
-  job_title: string;
-}
-
-export interface ATSApiResponse {
-  success: boolean;
-  top_ranked: Results[];
-}
-
-// Component Props
-export interface ResumeCardProps {
-  item: Results;
-  onSelect?: (item: Results) => void;
-}
-
-export interface ScoreChartProps {
-  score: number;
+  localisation: string;
 }

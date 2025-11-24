@@ -1,29 +1,38 @@
 import UploadResume from '@/components/UploadResume';
 import TopRanking from '@/components/TopRanking';
 import { useAppStore } from '@/store/useAppStore';
-import LoadingOverlay from '@/components/LoadingOverlay';
 
 export default function DashboardPage() {
-  const topRanded = useAppStore((s) => s.top_ranked);
-  console.log(topRanded);
+  const topRanked = useAppStore((s) => s.top_ranked);
 
   return (
-    <>
-      <LoadingOverlay />
+    <div className="w-full min-h-screen grid grid-cols-1 lg:grid-cols-12">
+      {/* Sidebar */}
+      <aside
+        className="
+        bg-white shadow-sm border-r 
+        p-6 flex flex-col gap-6
 
-      <div className="h-screen w-full grid grid-cols-12 bg-gray-100">
-        <aside className="col-span-4 bg-white shadow-sm border-r p-6 flex flex-col gap-6">
-          <h2 className="text-xl font-bold tracking-tight">Dashboard</h2>
-          <UploadResume />
-        </aside>
+        /* Full width on mobile */
+        col-span-12
 
-        <main className="col-span-8 p-6 overflow-y-auto">
-          <h2 className="text-xl font-bold tracking-tight uppercase">
-            Résultats
-          </h2>
-          <TopRanking list={topRanded} />
-        </main>
-      </div>
-    </>
+        /* Sidebar on desktop */
+        lg:col-span-4
+      "
+      >
+        <UploadResume />
+      </aside>
+
+      {/* Main Content */}
+      <main
+        className="
+        col-span-12
+        lg:col-span-8 
+        px-4 md:px-6 py-6
+      "
+      >
+        <TopRanking list={topRanked} />
+      </main>
+    </div>
   );
 }
