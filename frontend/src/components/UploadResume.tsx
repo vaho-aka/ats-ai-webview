@@ -38,6 +38,7 @@ export default function UploadResume() {
       setUploadStatus('success');
     } catch (err) {
       console.error(err);
+
       setUploadStatus('error');
     }
   };

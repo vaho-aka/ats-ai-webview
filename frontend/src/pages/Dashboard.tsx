@@ -12,11 +12,7 @@ export default function DashboardPage() {
         className="
         bg-white shadow-sm border-r 
         p-6 flex flex-col gap-6
-
-        /* Full width on mobile */
         col-span-12
-
-        /* Sidebar on desktop */
         lg:col-span-4
       "
       >
@@ -28,7 +24,7 @@ export default function DashboardPage() {
         className="
         col-span-12
         lg:col-span-8 
-        px-4 md:px-6 py-6
+        px-4 md:px-6
       "
       >
         <TopRanking list={topRanked} />

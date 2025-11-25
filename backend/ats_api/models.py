@@ -19,6 +19,10 @@ class JobOffer(models.Model):
     title = models.CharField(max_length=255, null=True, blank=True)
     description = models.TextField()
     competences_requises = models.TextField()
+    company_name = models.CharField(max_length=255, null=True, blank=True)
+    location = models.CharField(max_length=255, null=True, blank=True)
+    type_de_contrat = models.CharField(max_length=255, null=True, blank=True)
+    fingerprint = models.CharField(max_length=32, null=True,unique=True)
 
 
 class Evaluation(models.Model):

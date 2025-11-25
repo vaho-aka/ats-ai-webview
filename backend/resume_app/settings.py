@@ -58,7 +58,7 @@ ROOT_URLCONF = 'resume_app.urls'
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",   # your React app
+    "http://localhost:5173",
 ]
 
 CSRF_TRUSTED_ORIGINS = [

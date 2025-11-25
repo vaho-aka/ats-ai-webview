@@ -1,5 +1,6 @@
 backend/.env
-backend/csv
+backend/cvs/
 backend/db.sqlite3
-backend/__pycache__/
-backend/migrations/
+.vscode/*
+.idea/*
+backend/ats_api/__pycache__/

@@ -14,10 +14,8 @@ export default function TopNav() {
   return (
     <header className="bg-white shadow px-6 md:px-8 py-4 sticky top-0 z-20">
       <div className="flex items-center justify-between">
-        {/* Logo */}
         <h1 className="text-xl font-bold text-neutral-800">Dashboard</h1>
 
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">
           {links.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -38,7 +36,6 @@ export default function TopNav() {
           ))}
         </nav>
 
-        {/* Mobile Toggle */}
         <button
           onClick={() => setOpen(!open)}
           className="md:hidden p-2 rounded-md hover:bg-neutral-200"
@@ -47,7 +44,6 @@ export default function TopNav() {
         </button>
       </div>
 
-      {/* Mobile Menu */}
       {open && (
         <div className="md:hidden mt-4 animate-slideDown">
           <nav className="flex flex-col gap-3 pb-4 border-t pt-4">

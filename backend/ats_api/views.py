@@ -2,6 +2,7 @@ import os
 import base64
 import io
 import json
+import hashlib
 import logging
 import re
 from pathlib import Path
@@ -31,6 +32,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
+
 
 if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY not set")
@@ -181,7 +183,10 @@ RÉPONDS UNIQUEMENT avec ce JSON (sans markdown, sans explication):
 
 {{
   "job_title": "",
-  "job_competences": ["Python", "Git", "..."]
+  "job_competences": ["Python", "Git", "Gestion de projet", "..."],
+  "company_name": "",
+  "location": ""
+  "type_de_contrat": ""
 }}
 
 NOTES:
@@ -307,7 +312,6 @@ def get_or_create_candidat(cv_data: dict) -> Candidat:
         email=email,
         defaults={
             "nom": identite.get("nom", ""),
-            "prenom": identite.get("prenom", ""),
             "telephone": identite.get("telephone", ""),
             "localisation": identite.get("adresse", "")
         }
@@ -316,7 +320,6 @@ def get_or_create_candidat(cv_data: dict) -> Candidat:
     # Update existing candidat if found
     if not created:
         candidat.nom = identite.get("nom", candidat.nom)
-        candidat.prenom = identite.get("prenom", candidat.prenom)
         candidat.telephone = identite.get("telephone", candidat.telephone)
         candidat.localisation = identite.get("adresse", candidat.localisation)
         candidat.save()
@@ -404,13 +407,22 @@ def evaluate_cv_vs_offer(request):
                 "error": f"Failed to analyze job description: {str(e)}"
             }, status=500)
         
+        normalized_job_data = json.dumps(job_data, sort_keys=True)
+        job_fingerprint = hashlib.md5(normalized_job_data.encode()).hexdigest()
+
         # Create JobOffer in database
         with transaction.atomic():
-            job_offer = JobOffer.objects.create(
-                title=job_data.get("job_title", ""),
-                description=job_description,
-                competences_requises=", ".join(job_data.get("job_competences", []))
-            )
+            job_offer, created = JobOffer.objects.update_or_create(
+                fingerprint=job_fingerprint,    # unique identity of this job
+                defaults={
+                    "title": job_data.get("job_title", "").strip(),
+                    "description": job_description.strip(),
+                    "competences_requises": ", ".join(job_data.get("job_competences", [])),
+                    "company_name": job_data.get("company_name", "").strip(),
+                    "location": job_data.get("location", "").strip(),
+                    "type_de_contrat": job_data.get("type_de_contrat", "").strip(),
+                    }
+                )
         
         # Process CVs
         results = []
@@ -589,3 +601,48 @@ def list_candidats(request):
     except Exception as e:
         logger.exception("List candidats failed")
         return Response({"error": str(e)}, status=500)
+
+# /api/job_offers/
+@api_view(["GET"])
+def list_job_offers(request):
+    search = request.GET.get("search", "").strip()
+    page = int(request.GET.get("page", 1))
+    per_page = 8
+
+    qs = JobOffer.objects.all().order_by("-id")
+
+    if search:
+        qs = qs.filter(title__icontains=search)
+
+        results = [{
+            "id": j.id,
+            "title": j.title,
+            "company": j.company_name,
+            "location": j.location,
+            "description": j.description,
+        } for j in qs]
+
+        return Response({
+            "count": len(results),
+            "results": results,
+            "paginated": False
+        })
+
+    total = qs.count()
+    start = (page - 1) * per_page
+    end = start + per_page
+    sliced = qs[start:end]
+
+    results = [{
+        "id": j.id,
+        "title": j.title,
+        "company": j.company_name,
+        "location": j.location,
+    } for j in sliced]
+
+    return Response({
+        "count": total,
+        "results": results,
+        "paginated": True,
+        "page": page,
+    })

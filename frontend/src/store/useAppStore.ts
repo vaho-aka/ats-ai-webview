@@ -12,6 +12,11 @@ export const useAppStore = create<State>()(
       job_description: '',
       uploadStatus: 'idle',
       selectedFile: [],
+      Candidats: [],
+      offres: [],
+
+      setCondidats: (candidats) => set({ Candidats: candidats }),
+      setOffres: (offres) => set({ offres: offres }),
 
       setJobDescription: (text) => set({ job_description: text }),
       setTopRanked: (r) => set({ top_ranked: r }),

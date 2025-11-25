@@ -10,6 +10,7 @@ export interface State {
   selectedFile: Result[];
 
   Candidats: Candidat[];
+  offres: Offre[];
 
   job_id: number;
   job_title: string;
@@ -25,6 +26,7 @@ export interface State {
   setJobTitle: (text: string) => void;
   setJobCompetencecs: (skills: string[]) => void;
   setCondidats: (c: Candidat[]) => void;
+  setOffres: (o: Offre[]) => void;
 
   reset: () => void;
 }
@@ -49,4 +51,11 @@ export interface Candidat {
   email: string;
   telephone: string;
   localisation: string;
+}
+
+export interface Offre {
+  id: number;
+  title: string;
+  company: string;
+  location: string;
 }
